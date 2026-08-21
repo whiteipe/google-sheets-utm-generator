@@ -36,7 +36,6 @@ Cada geração fica registrada no **Log** com timestamp. Detalhes de funcionamen
 ## Documentação
 
 - **`INSTALACAO.md`** — passo a passo completo e regras de comportamento.
-- **`DOCUMENTACAO.md`** — visão geral e contextualização do projeto.
 
 ## Licença
 
