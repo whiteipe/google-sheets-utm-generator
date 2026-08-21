@@ -240,8 +240,9 @@
       var v = sel.value;
       if (!v) return;
       var input = document.getElementById('utm_id');
-      var cur = input.value;
-      input.value = cur ? cur + v : v;
+      var cur = input.value.trim();
+      if (cur && !/[-_} ]$/.test(cur)) cur += '_';
+      input.value = cur + v;
       blockBadChars(input);
       watchField('utm_id', 'warn-id');
       sel.value = '';

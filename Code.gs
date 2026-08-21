@@ -254,7 +254,11 @@ function generateUrl(payload) {
   var pairs = [];
   var order = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id'];
   order.forEach(function(k) {
-    if (vals[k] !== '') pairs.push(k + '=' + encodeURIComponent(vals[k]));
+    if (vals[k] !== '') {
+      // preserva placeholders de plataforma {token} na URL (a plataforma substitui pelo valor real)
+      var encoded = encodeURIComponent(vals[k]).replace(/%7B/g, '{').replace(/%7D/g, '}');
+      pairs.push(k + '=' + encoded);
+    }
   });
   var separator = base.indexOf('?') === -1 ? '?' : '&';
   var url = base + separator + pairs.join('&');
