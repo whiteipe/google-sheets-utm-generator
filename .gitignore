@@ -2,6 +2,9 @@
 node_modules/
 .appscript.json
 
+# Config / tooling
+AGENTS.md
+
 # OS / editor
 .DS_Store
 Thumbs.db
