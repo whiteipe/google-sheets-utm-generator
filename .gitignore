@@ -1,0 +1,7 @@
+# Apps Script / Sheets
+node_modules/
+.appscript.json
+
+# OS / editor
+.DS_Store
+Thumbs.db

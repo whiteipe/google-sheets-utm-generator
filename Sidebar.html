@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+  <style>
+    body { font-family: 'Google Sans', Roboto, Arial, sans-serif; padding: 18px; }
+    h2 { font-size: 18px; margin: 0 0 16px; color: #202124; }
+    .field { margin-bottom: 14px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #3c4043;
+      margin-bottom: 5px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 10px 11px;
+      border: 1px solid #ccd; border-radius: 6px; font-size: 14px; }
+    select { height: auto !important; line-height: normal !important; }
+    input:focus, select:focus { outline: 2px solid #1a73e8; border-color: transparent; }
+    input.bad { border-color: #e37400; outline: 2px solid #fbbc04; }
+    input.red { border-color: #d93025; outline: 2px solid #f28b82; }
+    .hint { font-size: 11px; color: #80868b; margin-top: 4px; }
+    .warn { display: none; font-size: 11px; color: #8a6d00; font-weight: 500;
+      margin-top: 4px; background: #fef7e0; border-left: 3px solid #fbbc04;
+      padding: 4px 7px; border-radius: 0 3px 3px 0; }
+    .warn.show { display: block; }
+    .err { display: none; font-size: 11px; color: #b31412; font-weight: 500;
+      margin-top: 4px; background: #fce8e6; border-left: 3px solid #d93025;
+      padding: 4px 7px; border-radius: 0 3px 3px 0; }
+    .two-col { display: flex; gap: 12px; }
+    .two-col > div { flex: 1; }
+    .check { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .check input { width: auto; }
+    .check label { margin: 0; cursor: pointer; font-weight: 500; }
+    .hidden { display: none !important; }
+    button { width: 100%; padding: 14px; border: none; border-radius: 6px;
+      font-size: 14px; font-weight: 600; cursor: pointer; box-sizing: border-box;
+      white-space: normal; min-height: 48px; }
+    .primary { background: #1a73e8; color: #fff; margin-top: 8px; }
+    .primary:hover { background: #1765cc; }
+    .primary[disabled] { background: #a8c7fa; cursor: not-allowed; }
+    .copy { background: #e8f0fe; color: #1a73e8; margin-top: 10px; }
+    .copy:hover { background: #d2e3fc; }
+    .result { margin-top: 20px; display: none; }
+    .result-label { font-size: 12px; font-weight: 600; color: #3c4043;
+      margin-bottom: 6px; }
+    .url-box { padding: 12px; background: #f8f9fa; border: 1px solid #dadce0;
+      border-radius: 6px; font-size: 12px; word-break: break-all;
+      color: #1a73e8; max-height: 320px; overflow-y: auto; }
+    .toast { position: fixed; bottom: 18px; left: 0; right: 0; text-align: center;
+      display: none; z-index: 2; }
+    .toast span { background: #333; color: #fff; padding: 8px 16px;
+      border-radius: 20px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h2>Gerador de UTM</h2>
+
+  <div class="field">
+    <label>Plataforma *</label>
+    <select id="platform" onchange="applyAutoRules()"></select>
+    <div class="err" id="err-platform">Selecione uma plataforma.</div>
+  </div>
+
+  <div class="field" id="influencer-wrap" style="display:none;">
+    <label>Nome do influenciador *</label>
+    <input id="influencer" type="text" placeholder="nome_sem_arroba"
+      oninput="blockBadChars(this);watchField('influencer','warn-inf')">
+    <div class="hint">Sem @. Vira utm_source (ex: fulano)</div>
+    <div class="warn" id="warn-inf"></div>
+    <div class="err" id="err-inf">Preencha o nome do influenciador.</div>
+  </div>
+
+  <div class="field">
+    <label>URL base (landing / ecommerce) *</label>
+    <input id="base" type="url" placeholder="site.com.br/pagina"
+      oninput="watchBase()">
+    <div class="hint">https:// é adicionado automaticamente se não digitar</div>
+    <div class="warn" id="warn-base"></div>
+    <div class="err" id="err-base">Preencha a URL base.</div>
+  </div>
+
+  <div class="field">
+    <label>Campanha / Produto *</label>
+    <input id="campaign" type="text" placeholder="ex: produto-x"
+      oninput="blockBadChars(this);watchField('campaign','warn-campaign')">
+    <div class="warn" id="warn-campaign"></div>
+    <div class="err" id="err-campaign">Preencha a campanha/produto.</div>
+  </div>
+
+  <div class="two-col">
+    <div class="field">
+      <label>utm_content</label>
+      <input id="content" type="text" placeholder="versao-v1"
+        oninput="blockBadChars(this);watchField('content','warn-content')">
+      <div class="warn" id="warn-content"></div>
+    </div>
+    <div class="field">
+      <label>utm_term</label>
+      <input id="term" type="text" placeholder="palavra-chave"
+        oninput="blockBadChars(this);watchField('term','warn-term')">
+      <div class="warn" id="warn-term"></div>
+    </div>
+  </div>
+
+  <div class="field" id="utm-id-row">
+    <label>utm_id</label>
+    <input id="utm_id" type="text" placeholder="id ou variavel da plataforma"
+      oninput="blockBadChars(this);watchField('utm_id','warn-id')">
+    <div class="warn" id="warn-id"></div>
+    <div class="check" id="auto-var-check">
+      <input type="checkbox" id="auto_var" onchange="toggleAutoVars()">
+      <label for="auto_var">Preenchimento automático de plataforma</label>
+    </div>
+    <div class="field hidden" id="var-select-wrap">
+      <select id="utm_var" onchange="insertVar(this)" title="Inserir variavel da plataforma">
+        <option value="">Selecione a variavel...</option>
+      </select>
+      <div class="hint">Insere o token no utm_id. A plataforma substitui pelo valor real.</div>
+    </div>
+  </div>
+
+  <div class="field" id="notes-row">
+    <label>Observações</label>
+    <input id="notes" type="text" placeholder="notas do time (vai só para o Log)">
+  </div>
+
+  <button class="primary" onclick="generate()">Gerar UTM</button>
+
+  <div class="result" id="result">
+    <div class="result-label">Link UTM pronto (gravado no log)</div>
+    <div class="url-box" id="url"></div>
+    <div class="warn show">Confirme MANUALMENTE o link antes de veicular.</div>
+    <button class="copy" onclick="copyUrl()">Copiar link</button>
+    <button class="copy" onclick="resetForm()">Novo</button>
+  </div>
+
+  <div class="toast" id="toast"><span id="toast-text"></span></div>
+
+  <script>
+    var PLATFORM_VARS = {
+      'Facebook Ads': [
+        { v:'{campaign.id}', l:'ID campanha' },
+        { v:'{campaign.name}', l:'Nome campanha' },
+        { v:'{adset.id}', l:'ID conjunto' },
+        { v:'{adset.name}', l:'Nome conjunto' },
+        { v:'{ad.id}', l:'ID anúncio' },
+        { v:'{ad.name}', l:'Nome anúncio' },
+        { v:'{placement}', l:'Placement' }
+      ],
+      'Google Ads': [
+        { v:'{campaignid}', l:'ID campanha' },
+        { v:'{adgroupid}', l:'ID grupo' },
+        { v:'{creative}', l:'ID anúncio' },
+        { v:'{keyword}', l:'Palavra-chave' },
+        { v:'{matchtype}', l:'Tipo de correspondência' },
+        { v:'{device}', l:'Dispositivo' },
+        { v:'{targetid}', l:'ID alvo' }
+      ],
+      'TikTok Ads': [
+        { v:'{campaign_id}', l:'ID campanha' },
+        { v:'{campaign}', l:'Nome campanha' },
+        { v:'{adgroup_id}', l:'ID grupo' },
+        { v:'{adgroup}', l:'Nome grupo' },
+        { v:'{ad_id}', l:'ID anúncio' },
+        { v:'{ad}', l:'Nome anúncio' },
+        { v:'{creative_id}', l:'ID criativo' },
+        { v:'{placement}', l:'Placement' },
+        { v:'{device}', l:'Dispositivo' }
+      ]
+    };
+    var BAD_CHARS = /[?#%'"=<>\\@]/;
+
+    var rules = { globals: { lower: true, sanitize: true }, platforms: {} };
+    var lastUrl = '';
+
+    google.script.run.withSuccessHandler(function(plats) {
+      var sel = document.getElementById('platform');
+      plats.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p; opt.text = p;
+        sel.appendChild(opt);
+      });
+      loadRules();
+    }).getPlatforms();
+
+    function loadRules() {
+      google.script.run.withSuccessHandler(function(r) {
+        rules = r; applyAutoRules();
+      }).getRules();
+    }
+
+    function applyAutoRules() {
+      var plat = document.getElementById('platform').value;
+      var rule = rules.platforms[plat] || {};
+      var isInf = (plat === 'Influenciadores');
+      document.getElementById('influencer-wrap').style.display = isInf ? 'block' : 'none';
+      if (isInf) {
+        document.getElementById('influencer').setAttribute('required', 'required');
+      } else {
+        document.getElementById('influencer').removeAttribute('required');
+      }
+      if (rule.source) document.getElementById('influencer').placeholder =
+        (rule.source === '[nome]') ? 'nome_sem_arroba' : rule.source.replace(/^@/, '');
+      // sem variáveis para influenciadores
+      var varWrap = document.getElementById('var-select-wrap');
+      var autoChk = document.getElementById('auto_var');
+      var sel = document.getElementById('utm_var');
+      sel.innerHTML = '<option value="">Selecione a variavel...</option>';
+      (PLATFORM_VARS[plat] || []).forEach(function(it) {
+        var opt = document.createElement('option');
+        opt.value = it.v; opt.text = it.v + ' — ' + it.l;
+        sel.appendChild(opt);
+      });
+      document.getElementById('auto-var-check').classList.toggle('hidden', isInf);
+      if (isInf) {
+        autoChk.checked = false;
+        varWrap.classList.add('hidden');
+      } else {
+        toggleAutoVars();
+      }
+      ['campaign','content','term','utm_id','influencer'].forEach(watchField);
+    }
+
+    function toggleAutoVars() {
+      var on = document.getElementById('auto_var').checked;
+      document.getElementById('var-select-wrap').classList.toggle('hidden', !on);
+      if (on && document.getElementById('platform').value === 'Influenciadores') {
+        document.getElementById('auto_var').checked = false;
+        document.getElementById('var-select-wrap').classList.add('hidden');
+      }
+    }
+
+    function blockBadChars(el) {
+      if (BAD_CHARS.test(el.value)) {
+        el.value = el.value.replace(BAD_CHARS, '');
+        el.classList.add('bad');
+        toast('Caractere inválido removido (& ? # % = < > @)');
+        setTimeout(function() { el.classList.remove('bad'); }, 1600);
+      }
+    }
+
+    function insertVar(sel) {
+      var v = sel.value;
+      if (!v) return;
+      var input = document.getElementById('utm_id');
+      var cur = input.value;
+      input.value = cur ? cur + v : v;
+      blockBadChars(input);
+      watchField('utm_id', 'warn-id');
+      sel.value = '';
+      input.focus();
+    }
+
+    function transformPreview(v) {
+      var s = v;
+      if (rules.globals.lower) s = s.toLowerCase();
+      if (rules.globals.sanitize) {
+        s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        s = s.replace(/[^a-z0-9@._\-{}]+/g, '_');
+      }
+      return s;
+    }
+
+    function watchField(id, warnId) {
+      warnId = warnId || ({ influencer:'warn-inf', campaign:'warn-campaign',
+        content:'warn-content', term:'warn-term', utm_id:'warn-id' }[id]);
+      var v = document.getElementById(id).value;
+      var el = document.getElementById(warnId);
+      if (!el) return;
+      if (!v) { el.classList.remove('show'); el.innerHTML = ''; return; }
+      var sanitize = rules.globals.sanitize, lower = rules.globals.lower;
+      var t = v, msgs = [];
+      if (sanitize) {
+        t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        t = t.replace(/[^a-z0-9@._\-{}]+/g, '_');
+        if (/[ ]/.test(v)) msgs.push('espaços viram "_"');
+        if (/[^a-z0-9@.\-_{} ]/.test(v)) msgs.push('símbolos viram "_"');
+      }
+      if (lower) {
+        var orig = v.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9@._\-{}]+/g, '_');
+        if (orig !== orig.toLowerCase()) msgs.push('maiúsculas viram minúsculas');
+        t = t.toLowerCase();
+      }
+      if (msgs.length) {
+        el.innerHTML = 'Será gerado como: ' + t + ' · ' + msgs.join('; ') + '.';
+        el.classList.add('show');
+      } else {
+        el.classList.remove('show');
+      }
+    }
+
+    function watchBase() {
+      var v = document.getElementById('base').value;
+      var el = document.getElementById('warn-base');
+      if (v && !/^https?:\/\//i.test(v)) {
+        el.innerHTML = 'Será gerado como: https://' + v;
+        el.classList.add('show');
+      } else {
+        el.classList.remove('show');
+      }
+    }
+
+    function validate() {
+      var plat = document.getElementById('platform').value;
+      var isInf = (plat === 'Influenciadores');
+      var ok = true, firstErr = null;
+
+      function mark(id, okTag, required) {
+        var el = document.getElementById(id);
+        var err = document.getElementById(okTag);
+        var isBad = required && !el.value.trim();
+        el.classList.toggle('red', isBad);
+        err.style.display = isBad ? 'block' : 'none';
+        if (isBad && !firstErr) { firstErr = el; ok = false; }
+      }
+
+      mark('base', 'err-base', true);
+      mark('campaign', 'err-campaign', true);
+      mark('influencer', 'err-inf', isInf);
+      var pErr = document.getElementById('err-platform');
+      if (!plat) { pErr.style.display = 'block'; firstErr = firstErr || document.getElementById('platform'); ok = false; }
+      else pErr.style.display = 'none';
+
+      if (firstErr) { firstErr.scrollIntoView({ block: 'center' }); }
+      return ok;
+    }
+
+    function generate() {
+      if (!validate()) { toast('Preencha os campos marcados em vermelho'); return; }
+      var plat = document.getElementById('platform').value;
+      var payload = {
+        platform: plat,
+        influencer: document.getElementById('influencer').value.trim(),
+        base: document.getElementById('base').value.trim(),
+        campaign: document.getElementById('campaign').value.trim(),
+        content: document.getElementById('content').value.trim(),
+        term: document.getElementById('term').value.trim(),
+        utm_id: document.getElementById('utm_id').value.trim(),
+        notes: document.getElementById('notes').value.trim()
+      };
+      var btn = document.querySelector('.primary');
+      btn.disabled = true; btn.textContent = 'Gerando...';
+      google.script.run.withSuccessHandler(function(res) {
+        lastUrl = res.url;
+        document.getElementById('url').textContent = res.url;
+        document.getElementById('result').style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Gerar UTM';
+        document.getElementById('result').scrollIntoView({ block: 'center' });
+        toast('UTM gerada e gravada no log');
+      }).withFailureHandler(function(err) {
+        toast('Erro: ' + err.message);
+        btn.disabled = false; btn.textContent = 'Gerar UTM';
+      }).generateUrl(payload);
+    }
+
+    function copyUrl() {
+      navigator.clipboard.writeText(lastUrl).then(function() {
+        toast('Link copiado!');
+      }, function() {
+        var el = document.getElementById('url');
+        var r = document.createRange();
+        r.selectNode(el);
+        var sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(r);
+        document.execCommand('copy');
+        toast('Link copiado!');
+      });
+    }
+
+    function resetForm() {
+      document.getElementById('result').style.display = 'none';
+      lastUrl = '';
+    }
+
+    function toast(msg) {
+      document.getElementById('toast-text').textContent = msg;
+      document.getElementById('toast').style.display = 'block';
+      setTimeout(function() { document.getElementById('toast').style.display = 'none'; }, 2400);
+    }
+  </script>
+</body>
+</html>
