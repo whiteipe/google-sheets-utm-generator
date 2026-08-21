@@ -72,7 +72,10 @@ function ensureHelp(ss) {
 
 function ensureConfig(ss) {
   var cfg = ss.getSheetByName(CFG);
-  if (!cfg) {
+  var fresh = !cfg;
+  var props = PropertiesService.getDocumentProperties();
+  var inited = props.getProperty(CFG + '_init') === '1';
+  if (fresh) {
     cfg = ss.insertSheet(CFG);
     cfg.getRange('A1').setValue('Configurações gerais').setFontSize(14).setFontWeight('bold');
     cfg.getRange('A2').setValue('UTMs em minúsculo').setFontWeight('bold');
@@ -83,30 +86,34 @@ function ensureConfig(ss) {
     cfg.getRange('C3').setValue('Remove acentos e símbolos dos valores (SIM/NAO)');
     buildConfigTable(cfg);
   }
-  // garante larguras + dropdown toda execução (funciona também em Config pré-existente)
-  cfg.setColumnWidth(1, 240);
-  cfg.setColumnWidth(2, 130);
-  cfg.setColumnWidth(3, 300);
-  cfg.setColumnWidth(4, 170);
-  cfg.setColumnWidth(5, 170);
-  cfg.setColumnWidth(6, 150);
-  cfg.setColumnWidth(7, 120);
-  cfg.getRange('A1:B3').setHorizontalAlignment('center');
-  addSimNaoDropdown(cfg);
-  // migração: placeholder de influenciador sem @
-  var last = Math.max(cfg.getLastRow(), CFG_DATA_ROW);
-  var srcCol = cfg.getRange(CFG_DATA_ROW, COL_CFG.SOURCE, last - CFG_DATA_ROW + 1, 1);
-  var srcVals = srcCol.getValues();
-  var changed = false;
-  for (var r = 0; r < srcVals.length; r++) {
-    if (String(srcVals[r][0]).trim() === '@[nome]') {
-      srcVals[r][0] = '[nome]';
-      changed = true;
+  // setup pesado (larguras, dropdowns, migração) roda só uma vez por planilha
+  // (ou sempre que a aba for recriada do zero)
+  if (!inited || fresh) {
+    cfg.setColumnWidth(1, 240);
+    cfg.setColumnWidth(2, 130);
+    cfg.setColumnWidth(3, 300);
+    cfg.setColumnWidth(4, 170);
+    cfg.setColumnWidth(5, 170);
+    cfg.setColumnWidth(6, 150);
+    cfg.setColumnWidth(7, 120);
+    cfg.getRange('A1:B3').setHorizontalAlignment('center');
+    addSimNaoDropdown(cfg);
+    // migração: placeholder de influenciador sem @
+    var last = Math.max(cfg.getLastRow(), CFG_DATA_ROW);
+    var srcCol = cfg.getRange(CFG_DATA_ROW, COL_CFG.SOURCE, last - CFG_DATA_ROW + 1, 1);
+    var srcVals = srcCol.getValues();
+    var changed = false;
+    for (var r = 0; r < srcVals.length; r++) {
+      if (String(srcVals[r][0]).trim() === '@[nome]') {
+        srcVals[r][0] = '[nome]';
+        changed = true;
+      }
     }
-  }
-  if (changed) srcCol.setValues(srcVals);
-  if (last >= CFG_DATA_ROW) {
-    cfg.getRange('D' + CFG_HEADER_ROW + ':G' + last).setVerticalAlignment('middle');
+    if (changed) srcCol.setValues(srcVals);
+    if (last >= CFG_DATA_ROW) {
+      cfg.getRange('D' + CFG_HEADER_ROW + ':G' + last).setVerticalAlignment('middle');
+    }
+    props.setProperty(CFG + '_init', '1');
   }
 }
 
@@ -167,7 +174,8 @@ function ensureLog(ss) {
 }
 
 function getPlatforms() {
-  ensureSheets();
+  // PLATFORMS é estático; sem ensureSheets aqui para o dropdown abrir rápido.
+  // As abas são garantidas por getRules/loadRules logo em seguida.
   return PLATFORMS;
 }
 
